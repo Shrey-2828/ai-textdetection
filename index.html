@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Text Detector</title>
+<meta name="description" content="Free AI Text Detector - Check if text or documents are written by AI or Human. Supports PDF, DOCX, and Images.">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-6">
+<div class="bg-white shadow-lg rounded-2xl p-6 w-full max-w-xl text-center">
+<h1 class="text-2xl font-bold mb-4">AI or Human Text Detector</h1>
+<input id="fileInput" type="file" accept=".pdf,.docx,image/*" class="mb-4 border rounded-lg p-2 w-full" />
+<button id="extractBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg w-full">Extract & Detect</button>
+<div id="loading" class="hidden mt-4 text-blue-600 font-medium">Processing... please wait ⏳</div>
+<div id="result" class="mt-4 hidden">
+<h2 class="text-xl font-semibold">Result:</h2>
+<p id="resultText" class="text-lg mt-2 font-bold"></p>
+</div>
+</div>
+<script>
+const backendURL = "https://your-backend-url.onrender.com/predict";
+
+async function extractTextFromPDF(file){
+  const pdf = await pdfjsLib.getDocument({ url: URL.createObjectURL(file) }).promise;
+  let text='';
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(' ');
+  }
+  return text;
+}
+
+async function extractTextFromDocx(file){
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await window.mammoth.extractRawText({ arrayBuffer });
+  return result.value;
+}
+
+async function extractTextFromImage(file){
+  const result = await Tesseract.recognize(file,'eng');
+  return result.data.text;
+}
+
+async function detectAI(text){
+  const response = await fetch(backendURL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({text}),
+  });
+  const data = await response.json();
+  return data.label;
+}
+
+document.getElementById("extractBtn").addEventListener("click", async()=>{
+  const file=document.getElementById("fileInput").files[0];
+  if(!file)return alert("Please select a file first.");
+  document.getElementById("loading").classList.remove("hidden");
+  document.getElementById("result").classList.add("hidden");
+  let extractedText="";
+  if(file.type==="application/pdf") extractedText=await extractTextFromPDF(file);
+  else if(file.type==="application/vnd.openxmlformats-officedocument.wordprocessingml.document") extractedText=await extractTextFromDocx(file);
+  else if(file.type.startsWith("image/")) extractedText=await extractTextFromImage(file);
+  else extractedText="Unsupported file format.";
+  const label = await detectAI(extractedText);
+  document.getElementById("loading").classList.add("hidden");
+  document.getElementById("result").classList.remove("hidden");
+  const resultText = document.getElementById("resultText");
+  resultText.textContent = label==="AI" ? "🤖 This text appears to be AI-generated." : "🧍 This text appears to be Human-written.";
+  resultText.className = label==="AI" ? "text-red-600 font-bold" : "text-green-600 font-bold";
+});
+</script>
+</body>
+</html>

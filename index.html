@@ -22,7 +22,7 @@
 </div>
 </div>
 <script>
-const backendURL = "https://ai-textdetection-3k3c.onrender.com";
+const backendURL = "srv-d6isld95pdvs73ae54kg";
 
 async function extractTextFromPDF(file){
   const pdf = await pdfjsLib.getDocument({ url: URL.createObjectURL(file) }).promise;
@@ -77,3 +77,4 @@ document.getElementById("extractBtn").addEventListener("click", async()=>{
 </body>
 
 </html>
+
